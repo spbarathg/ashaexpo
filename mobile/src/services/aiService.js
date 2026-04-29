@@ -15,10 +15,10 @@
 // ─── Configuration ──────────────────────────────────────────────────────────────
 
 // TODO: Replace with your actual API key before demo
-const GEMINI_API_KEY = 'AIzaSyCod_45WznKjg1CPR2E6OjYpB_GYpVyGVo';
+const GEMINI_API_KEY = 'AIzaSyBw795CtnDIZkzwCe6LlLhUVTZ5H8TnDyY';
 
 const GEMINI_ENDPOINT =
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 // ─── Valid enums (must match VISIT_TYPES in constants/visitTypes.js) ─────────
 

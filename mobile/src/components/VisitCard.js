@@ -3,7 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '../styles/colors';
 import { spacing } from '../styles/spacing';
 import RiskBadge from './RiskBadge';
-import { formatDateTime, formatBP, formatTemp } from '../utils/formatters';
+import { formatBP, formatTemp } from '../utils/formatters';
+import { formatDateTime } from '../utils/dateUtils';
 import { capitalize } from '../utils/formatters';
 
 export default function VisitCard({ visit }) {

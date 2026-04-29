@@ -3,7 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '../styles/colors';
 import { spacing } from '../styles/spacing';
 import RiskBadge from './RiskBadge';
-import { formatDateTime, formatRiskFlags } from '../utils/formatters';
+import { formatRiskFlags } from '../utils/formatters';
+import { formatDateTime } from '../utils/dateUtils';
 
 export default function AlertCard({ alert }) {
   let flags = [];
