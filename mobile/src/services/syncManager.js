@@ -1,5 +1,5 @@
 import { doc, setDoc } from 'firebase/firestore';
-import { firestore } from './firebase';
+import { getFirestoreInstance } from './firebase';
 import { isOnline, onConnectivityChange } from './connectivityService';
 import { getPendingItems, markDone, markFailed } from '../database/syncQueueRepository';
 import { updateVisitSyncStatus } from '../database/visitRepository';
@@ -43,8 +43,13 @@ export async function processQueue() {
           continue;
         }
 
+        const db = getFirestoreInstance();
+        if (!db) {
+          throw new Error('Firestore not initialized');
+        }
+
         // Write to Firestore
-        await setDoc(doc(firestore, collection, item.record_id), payload);
+        await setDoc(doc(db, collection, item.record_id), payload);
 
         // Mark queue item as done
         await markDone(item.id);

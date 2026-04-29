@@ -50,3 +50,6 @@ dist-ssr/
 .firebase/
 firebase-debug.log
 firebase-debug.*.log
+
+# Firebase service account keys
+*firebase-adminsdk*.json
