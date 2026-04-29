@@ -225,12 +225,14 @@ export default function AddVisitScreen({ route, navigation }) {
         asha_id:patient.asha_id, risk_flags:risk.riskFlags});
 
       setRiskResult(risk);
-      if(isOnline()) processQueue();
+      const wasOnline = isOnline();
+      if(wasOnline) processQueue();
 
+      const syncMsg = wasOnline ? '☁️ Synced to server' : '📴 Saved offline — will sync automatically';
       Alert.alert('✅ Visit Saved',
         risk.riskLevel!=='none'
-          ? `Risk: ${risk.riskLevel.toUpperCase()}\nFlags: ${risk.riskFlags.join(', ')}`
-          : 'Visit recorded successfully.',
+          ? `Risk: ${risk.riskLevel.toUpperCase()}\nFlags: ${risk.riskFlags.join(', ')}\n\n${syncMsg}`
+          : `Visit recorded successfully.\n\n${syncMsg}`,
         [{text:'OK',onPress:()=>navigation.goBack()}]);
     } catch(err){ console.error(err); Alert.alert('Error','Failed to save visit.'); }
     finally { setSaving(false); }

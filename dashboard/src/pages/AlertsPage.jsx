@@ -1,34 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { subscribeToAlerts, acknowledgeAlert } from '../services/alertService';
-import { playAlertSound } from '../services/audioService';
+import React, { useState, useMemo } from 'react';
+import { acknowledgeAlert } from '../services/alertService';
 import AlertCard from '../components/AlertCard';
 import VillageFilter from '../components/VillageFilter';
 import StatsCard from '../components/StatsCard';
 import EscalationPanel from '../components/EscalationPanel';
 
-export default function AlertsPage() {
-  const [alerts, setAlerts] = useState([]);
-  const [villages, setVillages] = useState([]);
+export default function AlertsPage({ alerts = [] }) {
   const [selectedVillage, setSelectedVillage] = useState('');
   const [selectedAlert, setSelectedAlert] = useState(null);
-  const isFirst = useRef(true);
 
-  useEffect(() => {
-    const unsub = subscribeToAlerts((allAlerts, changes) => {
-      setAlerts(allAlerts);
-      // Extract unique villages
-      const vs = [...new Set(allAlerts.map(a => a.village).filter(Boolean))].sort();
-      setVillages(vs);
-      // Play sound for new high-risk alerts (skip initial load)
-      if (!isFirst.current) {
-        const added = changes.filter(c => c.type === 'added');
-        const hasNewHigh = added.some(c => c.doc.data().risk_level === 'high');
-        if (hasNewHigh) playAlertSound();
-      }
-      isFirst.current = false;
-    });
-    return () => unsub();
-  }, []);
+  // Derive villages from alerts
+  const villages = useMemo(() =>
+    [...new Set(alerts.map(a => a.village).filter(Boolean))].sort(),
+    [alerts]
+  );
 
   const filtered = selectedVillage
     ? alerts.filter(a => a.village === selectedVillage)

@@ -43,9 +43,22 @@ export default function PatientDetailScreen({ route, navigation }) {
 
   if (!patient) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      <ScrollView style={styles.container}>
+        {/* Loading Skeleton */}
+        <View style={styles.profileCard}>
+          <View style={[styles.avatarLarge, { backgroundColor: colors.border }]} />
+          <View style={{ width: 160, height: 20, backgroundColor: colors.border, borderRadius: 8, marginTop: 12 }} />
+          <View style={{ width: 200, height: 14, backgroundColor: colors.divider, borderRadius: 6, marginTop: 8 }} />
+          <View style={{ width: 120, height: 14, backgroundColor: colors.divider, borderRadius: 6, marginTop: 6 }} />
+        </View>
+        <View style={{ marginHorizontal: spacing.md, height: 48, backgroundColor: colors.border, borderRadius: 12, marginBottom: spacing.md }} />
+        <View style={{ marginHorizontal: spacing.md }}>
+          <View style={{ height: 16, width: 140, backgroundColor: colors.border, borderRadius: 6, marginBottom: spacing.sm }} />
+          {[1,2,3].map(i => (
+            <View key={i} style={{ height: 72, backgroundColor: colors.divider, borderRadius: 12, marginBottom: 8 }} />
+          ))}
+        </View>
+      </ScrollView>
     );
   }
 

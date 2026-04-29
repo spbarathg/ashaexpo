@@ -59,19 +59,19 @@ export function parseNote(note) {
   // --- Bleeding ---
   // Pattern: "khoon", "bleeding", "रक्त", "khoon aa raha"
   if (/(?:khoon|khun|bleeding|bleed|रक्त|रक्तस्राव|खून)/i.test(text)) {
-    extracted.bleeding = 1;
+    extracted.bleeding = true;
   }
 
   // --- Seizure ---
   // Pattern: "dora", "seizure", "fits", "दौरा"
   if (/(?:dora|dauraa?|seizure|fits|mirgi|दौरा|मिर्गी)/i.test(text)) {
-    extracted.seizure = 1;
+    extracted.seizure = true;
   }
 
   // --- Breathlessness ---
   // Pattern: "sans nahi", "breathless", "saans fool"
   if (/(?:sans?\s*(?:nahi|nhi|fool|phool)|breathless|saans?\s*(?:nahi|nhi|fool|phool)|साँस|श्वास)/i.test(text)) {
-    extracted.breathlessness = 1;
+    extracted.breathlessness = true;
   }
 
   // --- Cough / TB ---
@@ -89,19 +89,19 @@ export function parseNote(note) {
   // --- TB follow-up missed ---
   // Pattern: "TB nahi aaya", "follow up miss"
   if (/(?:tb\s*(?:nahi|nhi)\s*(?:aaya|aay)|tb\s*miss|follow\s*up\s*miss|टीबी\s*नहीं)/i.test(text)) {
-    extracted.tb_followup_missed = 1;
+    extracted.tb_followup_missed = true;
   }
 
   // --- Vaccination due ---
   // Pattern: "tika baaki", "टीका बाकी", "vaccine due"
   if (/(?:tika\s*(?:baaki|baki)|टीका\s*बाकी|vaccine?\s*due|vaccination?\s*due)/i.test(text)) {
-    extracted.vaccination_due = 1;
+    extracted.vaccination_due = true;
   }
 
   // --- Vaccination given ---
   // Pattern: "tika diya", "टीका दिया", "vaccine given"
   if (/(?:tika\s*(?:diya|de\s*diya)|टीका\s*(?:दिया|दे\s*दिया)|vaccine?\s*given|vaccination?\s*(?:given|done|complete))/i.test(text)) {
-    extracted.vaccination_given = 1;
+    extracted.vaccination_given = true;
   }
 
   // --- MUAC ---

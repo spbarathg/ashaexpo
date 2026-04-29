@@ -36,11 +36,3 @@ export function getFirestoreInstance() {
   }
   return _firestore;
 }
-
-// Backward-compatible export (lazy)
-export const firestore = new Proxy({}, {
-  get(_, prop) {
-    const fs = getFirestoreInstance();
-    return fs ? fs[prop] : undefined;
-  },
-});

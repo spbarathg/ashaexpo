@@ -18,7 +18,7 @@
 const GEMINI_API_KEY = 'AIzaSyBw795CtnDIZkzwCe6LlLhUVTZ5H8TnDyY';
 
 const GEMINI_ENDPOINT =
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 // ─── Valid enums (must match VISIT_TYPES in constants/visitTypes.js) ─────────
 
@@ -272,14 +272,12 @@ function sanitizeAIResponse(raw) {
   return result;
 }
 
-// ─── Mock response (hackathon demo safety net) ──────────────────────────────────
+// ─── Mock responses (hackathon demo safety net) ─────────────────────────────────
 
-/**
- * Returns a realistic mock response for demo/fallback scenarios.
- * Simulates an ANC visit with common findings.
- */
-function getMockResponse() {
-  return {
+let _mockIndex = 0;
+
+const MOCK_RESPONSES = [
+  {
     visit_type: 'ANC',
     trimester: '2',
     bp_systolic: '130',
@@ -292,5 +290,56 @@ function getMockResponse() {
       'Patient Sunita, dusra trimester chal raha hai, 24 hafte ho gaye. ' +
       'BP 130/85 hai. Weight 52 kg. Khoon nahi aa raha, koi seizure nahi. ' +
       'Sab normal lag raha hai.',
-  };
+  },
+  {
+    visit_type: 'Child',
+    temperature_c: '39.8',
+    muac_cm: '11.0',
+    breathlessness: true,
+    vaccination_due: true,
+    vaccination_given: false,
+    raw_note:
+      'Bachche ko tez bukhar hai, temperature 39.8 hai. MUAC 11 cm. ' +
+      'Saans lene mein taklif ho rahi hai. Tika abhi baaki hai.',
+  },
+  {
+    visit_type: 'TB Follow-up',
+    tb_cough_weeks: '4',
+    tb_followup_missed: true,
+    temperature_c: '38.2',
+    weight_kg: '45',
+    raw_note:
+      'TB patient Ramu ka follow-up miss ho gaya. 4 hafte se khansi hai. ' +
+      'Halka bukhar 38.2. Wajan 45 kg ho gaya. Dawai nahi le raha tha.',
+  },
+  {
+    visit_type: 'Postnatal',
+    postnatal_day: '3',
+    bp_systolic: '145',
+    bp_diastolic: '95',
+    bleeding: true,
+    temperature_c: '37.8',
+    raw_note:
+      'Delivery ke 3 din baad visit. BP 145/95 hai, thoda zyada hai. ' +
+      'Halka khoon aa raha hai. Temperature 37.8. Monitoring zaroori hai.',
+  },
+  {
+    visit_type: 'Vaccination',
+    vaccination_due: true,
+    vaccination_given: true,
+    temperature_c: '36.8',
+    raw_note:
+      'Bachche ka tika lagaya gaya. Temperature normal 36.8. ' +
+      'Polio aur DPT booster diya gaya. Agla tika 6 hafte baad.',
+  },
+];
+
+/**
+ * Returns a varied mock response for demo/fallback scenarios.
+ * Rotates through 5 different visit types so repeated demos look natural.
+ */
+function getMockResponse() {
+  const mock = MOCK_RESPONSES[_mockIndex % MOCK_RESPONSES.length];
+  _mockIndex++;
+  return { ...mock };
 }

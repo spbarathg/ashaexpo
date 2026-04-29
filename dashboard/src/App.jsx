@@ -1,11 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AlertsPage from './pages/AlertsPage';
 import ReportsPage from './pages/ReportsPage';
 import HeatmapPage from './pages/HeatmapPage';
 import CommandStrip from './components/CommandStrip';
+import { subscribeToAlerts } from './services/alertService';
+import { playAlertSound } from './services/audioService';
 
-export default function App() {
+// ── Error Boundary ──────────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error('Dashboard error:', error, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          minHeight: '100vh', gap: '16px', padding: '40px', textAlign: 'center',
+          fontFamily: 'Inter, sans-serif', backgroundColor: '#F5F5F5',
+        }}>
+          <div style={{ fontSize: '48px' }}>⚠️</div>
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#212121', margin: 0 }}>Something went wrong</h2>
+          <p style={{ color: '#757575', maxWidth: '400px', lineHeight: 1.5 }}>
+            {this.state.error?.message || 'An unexpected error occurred.'}
+          </p>
+          <button onClick={() => window.location.reload()} style={{
+            padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+            backgroundColor: '#1B5E20', color: '#fff', fontWeight: 600, fontSize: '14px',
+          }}>Reload Dashboard</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ── App ─────────────────────────────────────────────────────────────────────────
+
+function AppContent() {
   const [tab, setTab] = useState('alerts');
+
+  // Single Firestore alert subscription — shared by AlertsPage & CommandStrip
+  const [alerts, setAlerts] = useState([]);
+  const isFirstLoad = useRef(true);
+
+  useEffect(() => {
+    const unsub = subscribeToAlerts((allAlerts, changes) => {
+      setAlerts(allAlerts);
+      // Play sound for new high-risk alerts (skip initial load)
+      if (!isFirstLoad.current) {
+        const added = changes.filter(c => c.type === 'added');
+        const hasNewHigh = added.some(c => c.doc.data().risk_level === 'high');
+        if (hasNewHigh) playAlertSound();
+      }
+      isFirstLoad.current = false;
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -69,12 +120,20 @@ export default function App() {
         </nav>
       </header>
 
-      <CommandStrip />
+      <CommandStrip alerts={alerts} />
 
       {/* Content */}
       <main style={{ flex: 1, width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
-        {tab === 'alerts' ? <AlertsPage /> : tab === 'reports' ? <ReportsPage /> : <HeatmapPage />}
+        {tab === 'alerts' ? <AlertsPage alerts={alerts} /> : tab === 'reports' ? <ReportsPage /> : <HeatmapPage />}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 }

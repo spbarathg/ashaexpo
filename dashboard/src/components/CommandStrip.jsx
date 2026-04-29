@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { subscribeToAlerts } from '../services/alertService';
 import { fetchReportData } from '../services/reportService';
 
 /**
@@ -18,20 +17,11 @@ function relativeTime(isoStr) {
 
 /**
  * Live district command intelligence strip.
- * Self-contained — owns its own Firestore subscription + one-time report fetch.
+ * Receives alerts from App.jsx (single subscription).
  * Bloomberg-terminal aesthetic: 34px, dark, monospaced chips.
  */
-export default function CommandStrip() {
-  const [alerts, setAlerts] = useState([]);
+export default function CommandStrip({ alerts = [] }) {
   const [vaccOverdue, setVaccOverdue] = useState(0);
-
-  // Own independent real-time alert subscription
-  useEffect(() => {
-    const unsub = subscribeToAlerts((allAlerts) => {
-      setAlerts(allAlerts);
-    });
-    return () => unsub();
-  }, []);
 
   // One-time vaccination data fetch
   useEffect(() => {
