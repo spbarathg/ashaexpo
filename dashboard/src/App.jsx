@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AlertsPage from './pages/AlertsPage';
 import ReportsPage from './pages/ReportsPage';
 import HeatmapPage from './pages/HeatmapPage';
+import SettingsPage from './pages/SettingsPage';
 import CommandStrip from './components/CommandStrip';
 import { subscribeToAlerts } from './services/alertService';
 import { playAlertSound } from './services/audioService';
@@ -97,7 +98,8 @@ function AppContent() {
           {[
             { id: 'alerts', label: 'Alerts', icon: '🔔' },
             { id: 'reports', label: 'Reports', icon: '📊' },
-            { id: 'heatmap', label: 'Heatmap', icon: '🗺️' }
+            { id: 'heatmap', label: 'Heatmap', icon: '🗺️' },
+            { id: 'settings', label: 'Settings', icon: '⚙️' }
           ].map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
               padding: '8px 20px', 
@@ -124,7 +126,7 @@ function AppContent() {
 
       {/* Content */}
       <main style={{ flex: 1, width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
-        {tab === 'alerts' ? <AlertsPage alerts={alerts} /> : tab === 'reports' ? <ReportsPage /> : <HeatmapPage />}
+        {tab === 'alerts' ? <AlertsPage alerts={alerts} /> : tab === 'reports' ? <ReportsPage /> : tab === 'settings' ? <SettingsPage /> : <HeatmapPage />}
       </main>
     </div>
   );

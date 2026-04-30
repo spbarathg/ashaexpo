@@ -7,9 +7,12 @@ export default function AlertCard({ alert, onAcknowledge, onViewPatient }) {
     : (() => { try { return JSON.parse(alert.risk_flags || '[]'); } catch { return []; } })();
   const isAcked = alert.status === 'acknowledged';
   const isHighRisk = alert.risk_level === 'high';
+
+  // High-risk cards stay visually prominent even after acknowledgement
+  const shouldFade = isAcked && !isHighRisk;
   
-  const borderColor = isAcked ? 'var(--border-color)' : (isHighRisk ? 'var(--danger-color)' : 'var(--warning-color)');
-  const bgColor = isAcked ? '#fcfcfc' : (isHighRisk ? '#fffefc' : 'var(--card-bg)');
+  const borderColor = shouldFade ? 'var(--border-color)' : (isHighRisk ? 'var(--danger-color)' : 'var(--warning-color)');
+  const bgColor = shouldFade ? '#fcfcfc' : (isHighRisk ? '#fffefc' : 'var(--card-bg)');
 
   return (
     <div style={{
@@ -19,15 +22,15 @@ export default function AlertCard({ alert, onAcknowledge, onViewPatient }) {
       marginBottom: '16px',
       border: '1px solid var(--border-color)',
       borderLeft: `4px solid ${borderColor}`,
-      boxShadow: isAcked ? 'none' : 'var(--shadow-sm)', 
-      opacity: isAcked ? 0.8 : 1,
+      boxShadow: shouldFade ? 'none' : 'var(--shadow-sm)', 
+      opacity: shouldFade ? 0.8 : 1,
       display: 'flex',
       flexDirection: 'column',
       gap: '16px',
       transition: 'all 0.2s ease',
     }}
-    onMouseEnter={e => { if(!isAcked) e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-    onMouseLeave={e => { if(!isAcked) e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
+    onMouseEnter={e => { if(!shouldFade) e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
+    onMouseLeave={e => { if(!shouldFade) e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -40,6 +43,19 @@ export default function AlertCard({ alert, onAcknowledge, onViewPatient }) {
              }}>
                ⚠️ URGENT
              </span>
+          )}
+          {/* High-risk acknowledged: show "Seen" chip instead of fading the card */}
+          {isHighRisk && isAcked && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              padding: '3px 10px', borderRadius: '100px',
+              backgroundColor: 'var(--success-bg)', color: 'var(--success-color)',
+              fontSize: '11px', fontWeight: 700, border: '1px solid rgba(76, 175, 80, 0.2)',
+              letterSpacing: '0.02em', textTransform: 'uppercase'
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              Seen
+            </span>
           )}
         </div>
         <span style={{ fontSize: '13px', color: 'var(--text-light)', fontWeight: 500 }}>
@@ -93,7 +109,7 @@ export default function AlertCard({ alert, onAcknowledge, onViewPatient }) {
         </div>
       )}
 
-      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '4px', display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '4px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
         {!isAcked ? (
           <button onClick={() => onAcknowledge(alert.id)} style={{
             padding: '10px 24px', 
@@ -110,12 +126,12 @@ export default function AlertCard({ alert, onAcknowledge, onViewPatient }) {
             gap: '8px'
           }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Acknowledge Alert
+            {isHighRisk ? 'Mark as Seen' : 'Acknowledge Alert'}
           </button>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success-color)', fontWeight: 600, fontSize: '14px' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-            Acknowledged {alert.acknowledged_at ? `at ${new Date(alert.acknowledged_at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: 'numeric', hour12: true })}` : ''}
+            {isHighRisk ? 'Seen' : 'Acknowledged'} {alert.acknowledged_at ? `at ${new Date(alert.acknowledged_at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: 'numeric', hour12: true })}` : ''}
           </div>
         )}
       </div>

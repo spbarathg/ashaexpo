@@ -14,8 +14,7 @@
 
 // ─── Configuration ──────────────────────────────────────────────────────────────
 
-// TODO: Replace with your actual API key before demo
-const GEMINI_API_KEY = 'AIzaSyDHGsD9rbMp3YYTvtFdSqeDR35m2o5UapM';
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
 const GEMINI_ENDPOINT =
   `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -125,11 +124,28 @@ export async function processVoiceHealthInput(audioBase64, mimeType = 'audio/mp4
       },
     };
 
-    const response = await fetch(GEMINI_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    });
+    let response;
+    let retries = 3;
+    let delay = 1000;
+
+    while (retries > 0) {
+      response = await fetch(GEMINI_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) break;
+
+      if (response.status === 429 && retries > 1) {
+        console.warn(`[aiService] Rate limited (429). Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        retries--;
+        delay *= 2;
+      } else {
+        break;
+      }
+    }
 
     if (!response.ok) {
       const errText = await response.text().catch(() => 'unknown');
