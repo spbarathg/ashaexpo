@@ -23,6 +23,31 @@ export default function ReportsPage() {
 
   const handlePrint = () => window.print();
 
+  const handleExportCSV = () => {
+    if (!data) return;
+    
+    const rows = [];
+    rows.push(['HMIS Category', 'Indicator', 'Value']);
+    
+    Object.entries(data).forEach(([sectionKey, sectionObj]) => {
+      Object.entries(sectionObj).forEach(([key, val]) => {
+        // Wrap string values in quotes to prevent CSV breakage
+        const safeVal = typeof val === 'string' && val.includes(',') ? `"${val}"` : val;
+        rows.push([sectionKey, key, safeVal]);
+      });
+    });
+
+    const csvContent = rows.map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `HMIS_Report_${selectedYear}_${(selectedMonth + 1).toString().padStart(2, '0')}${selectedVillage ? '_' + selectedVillage : ''}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{ animation: 'fadeIn 0.4s ease' }}>
       <div className="no-print" style={{ marginBottom: '32px' }}>
@@ -35,14 +60,24 @@ export default function ReportsPage() {
               View and export aggregated ASHA village reports.
             </p>
           </div>
-          <button onClick={handlePrint} style={{
-            padding: '10px 20px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
-            backgroundColor: 'var(--primary-color)', color: '#fff', fontWeight: 600, fontSize: '14px',
-            display: 'flex', alignItems: 'center', gap: '8px', boxShadow: 'var(--shadow-sm)'
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-            Print / Export
-          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button onClick={handleExportCSV} style={{
+              padding: '10px 20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', cursor: 'pointer',
+              backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', fontWeight: 600, fontSize: '14px',
+              display: 'flex', alignItems: 'center', gap: '8px', boxShadow: 'var(--shadow-sm)'
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export CSV
+            </button>
+            <button onClick={handlePrint} style={{
+              padding: '10px 20px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
+              backgroundColor: 'var(--primary-color)', color: '#fff', fontWeight: 600, fontSize: '14px',
+              display: 'flex', alignItems: 'center', gap: '8px', boxShadow: 'var(--shadow-sm)'
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+              Export PDF
+            </button>
+          </div>
         </div>
 
         <div style={{ 
