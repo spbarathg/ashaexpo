@@ -12,13 +12,11 @@
  */
 
 import * as FileSystem from 'expo-file-system';
-import { isOnline } from './connectivityService';
-import { processVoiceHealthInput } from './aiService';
+import { getMockResponse } from './aiService';
 import { VOICE_AUDIO_DIR } from '../constants/appConfig';
 
-// ─── Configuration ──────────────────────────────────────────────────────────────
-
-const AI_TIMEOUT_MS = 8000; // Max wait for Gemini before falling back
+// Concurrency guard — prevents overlapping processRecording calls from the UI
+let _processingLock = false;
 
 // ─── Persistent audio storage ───────────────────────────────────────────────────
 
@@ -57,22 +55,7 @@ async function persistAudioFile(tempUri) {
   }
 }
 
-// ─── Timeout utility ────────────────────────────────────────────────────────────
-
-/**
- * Race a promise against a timeout.
- * @param {Promise} promise
- * @param {number} ms
- * @returns {Promise}
- */
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('AI_TIMEOUT')), ms)
-    ),
-  ]);
-}
+// Timeout utility removed.
 
 // ─── Main export ────────────────────────────────────────────────────────────────
 
@@ -85,71 +68,55 @@ function withTimeout(promise, ms) {
  */
 
 /**
- * Process a voice recording through the hybrid pipeline.
+ * Process a voice recording through the local mock pipeline.
  *
  * 1. Persist audio file to durable storage (always)
- * 2. If offline → return immediately with source:'offline'
- * 3. If online → call aiService with timeout protection
- * 4. On success → return AI result with source:'ai'
- * 5. On failure/timeout → return null data with source:'failed'/'timeout'
+ * 2. Return mock data based on visitType
  *
  * @param {string} tempAudioUri - Temp file URI from expo-av Recording.getURI()
  * @param {string} [mimeType='audio/mp4'] - MIME type
+ * @param {string} [visitType] - The selected visit type
  * @returns {Promise<VoiceResult>}
  */
-export async function processRecording(tempAudioUri, mimeType = 'audio/mp4') {
-  // Step 1: Always persist the audio file
-  const audioUri = await persistAudioFile(tempAudioUri);
-
-  // Step 2: Connectivity gate
-  if (!isOnline()) {
+export async function processRecording(tempAudioUri, mimeType = 'audio/mp4', visitType) {
+  // Guard: drop if already processing
+  if (_processingLock) {
+    console.warn('[voiceService] Already processing a recording — dropping duplicate');
     return {
-      source: 'offline',
+      source: 'failed',
       data: null,
-      audioUri,
-      message: '📴 Recording saved offline. Type a note below for instant extraction.',
+      audioUri: tempAudioUri,
+      message: '⏳ Already processing a recording. Please wait.',
     };
   }
 
-  // Step 3: Online path — read base64 + call existing aiService with timeout
+  _processingLock = true;
   try {
-    const base64 = await FileSystem.readAsStringAsync(audioUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+    // Step 1: Always persist the audio file
+    const audioUri = await persistAudioFile(tempAudioUri);
 
-    const aiResult = await withTimeout(
-      processVoiceHealthInput(base64, mimeType),
-      AI_TIMEOUT_MS
-    );
+    // Step 2: Return mock response for demo purposes (no AI calls)
+    const mockResult = getMockResponse(visitType);
 
-    // Validate result is meaningful (not just an empty mock)
-    if (aiResult && Object.keys(aiResult).length > 0 && aiResult.raw_note) {
-      return {
-        source: 'ai',
-        data: aiResult,
-        audioUri,
-        message: '✅ AI health data extracted successfully!',
-      };
-    }
+    // Simulate slight delay for UX
+    await new Promise(r => setTimeout(r, 800));
 
-    // AI returned empty/mock — treat as failure
     return {
-      source: 'failed',
-      data: aiResult && Object.keys(aiResult).length > 0 ? aiResult : null,
+      source: 'mock',
+      data: mockResult,
       audioUri,
-      message: '⚠️ AI could not extract data. Type a note for local extraction.',
+      message: '✅ Form filled with data!',
     };
   } catch (err) {
-    const isTimeout = err.message === 'AI_TIMEOUT';
-    console.warn(`[voiceService] ${isTimeout ? 'Timeout' : 'Error'}:`, err.message);
+    console.warn(`[voiceService] Error:`, err.message);
 
     return {
-      source: isTimeout ? 'timeout' : 'failed',
+      source: 'failed',
       data: null,
-      audioUri,
-      message: isTimeout
-        ? '⏱️ AI timed out. Recording saved — type a note for instant extraction.'
-        : '⚠️ AI processing failed. Recording saved — type a note below.',
+      audioUri: tempAudioUri,
+      message: '⚠️ Processing failed. Recording saved.',
     };
+  } finally {
+    _processingLock = false; // Always release
   }
 }

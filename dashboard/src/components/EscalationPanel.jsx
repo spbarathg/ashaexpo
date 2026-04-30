@@ -213,10 +213,10 @@ export default function EscalationPanel({ alert, onClose }) {
             </div>
           )}
 
-          {/* AI Clinical Assessment */}
+          {/* Clinical Assessment */}
           <div className="escalation-section">
             <div className="escalation-section-label">
-              {isHigh ? 'AI Clinical Assessment' : 'Observation Summary'}
+              {isHigh ? 'Clinical Assessment' : 'Observation Summary'}
             </div>
             <div className="escalation-ai-card">
               <div className="escalation-ai-text">{escalation.summary}</div>

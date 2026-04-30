@@ -42,7 +42,7 @@ export default function AddVisitScreen({ route, navigation }) {
   const [showExtracted, setShowExtracted] = useState(false);
   const [extractedSummary, setExtractedSummary] = useState([]);
   const [riskResult, setRiskResult] = useState(null);
-  const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [existingTodayVisits, setExistingTodayVisits] = useState([]);
   const [fields, setFields] = useState({
     anc_number:'', trimester:'', bp_systolic:'', bp_diastolic:'',
@@ -81,58 +81,58 @@ export default function AddVisitScreen({ route, navigation }) {
     setShowExtracted(summary.length > 0);
   };
 
-  const handleAIResult = (aiJson) => {
-    if (!aiJson || typeof aiJson !== 'object') return;
+  const handleVoiceResult = (voiceData) => {
+    if (!voiceData || typeof voiceData !== 'object') return;
 
     // Set visitType FIRST so conditional fields render before merge
-    if (aiJson.visit_type) setVisitType(aiJson.visit_type);
+    if (voiceData.visit_type) setVisitType(voiceData.visit_type);
 
     // Merge into fields using same truthy-only overwrite pattern as handleParseNote
     setFields(p => ({
       ...p,
-      raw_note: aiJson.raw_note ? String(aiJson.raw_note) : p.raw_note,
-      bp_systolic: aiJson.bp_systolic ? String(aiJson.bp_systolic) : p.bp_systolic,
-      bp_diastolic: aiJson.bp_diastolic ? String(aiJson.bp_diastolic) : p.bp_diastolic,
-      temperature_c: aiJson.temperature_c ? String(aiJson.temperature_c) : p.temperature_c,
-      weight_kg: aiJson.weight_kg ? String(aiJson.weight_kg) : p.weight_kg,
-      anc_number: aiJson.anc_number ? String(aiJson.anc_number) : p.anc_number,
-      trimester: aiJson.trimester ? String(aiJson.trimester) : p.trimester,
-      gestational_weeks: aiJson.gestational_weeks ? String(aiJson.gestational_weeks) : p.gestational_weeks,
-      postnatal_day: aiJson.postnatal_day ? String(aiJson.postnatal_day) : p.postnatal_day,
-      muac_cm: aiJson.muac_cm ? String(aiJson.muac_cm) : p.muac_cm,
-      tb_cough_weeks: aiJson.tb_cough_weeks ? String(aiJson.tb_cough_weeks) : p.tb_cough_weeks,
-      bleeding: aiJson.bleeding === true ? true : p.bleeding,
-      seizure: aiJson.seizure === true ? true : p.seizure,
-      breathlessness: aiJson.breathlessness === true ? true : p.breathlessness,
-      vaccination_due: aiJson.vaccination_due === true ? true : p.vaccination_due,
-      vaccination_given: aiJson.vaccination_given === true ? true : p.vaccination_given,
-      tb_followup_missed: aiJson.tb_followup_missed === true ? true : p.tb_followup_missed,
+      raw_note: voiceData.raw_note ? String(voiceData.raw_note) : p.raw_note,
+      bp_systolic: voiceData.bp_systolic ? String(voiceData.bp_systolic) : p.bp_systolic,
+      bp_diastolic: voiceData.bp_diastolic ? String(voiceData.bp_diastolic) : p.bp_diastolic,
+      temperature_c: voiceData.temperature_c ? String(voiceData.temperature_c) : p.temperature_c,
+      weight_kg: voiceData.weight_kg ? String(voiceData.weight_kg) : p.weight_kg,
+      anc_number: voiceData.anc_number ? String(voiceData.anc_number) : p.anc_number,
+      trimester: voiceData.trimester ? String(voiceData.trimester) : p.trimester,
+      gestational_weeks: voiceData.gestational_weeks ? String(voiceData.gestational_weeks) : p.gestational_weeks,
+      postnatal_day: voiceData.postnatal_day ? String(voiceData.postnatal_day) : p.postnatal_day,
+      muac_cm: voiceData.muac_cm ? String(voiceData.muac_cm) : p.muac_cm,
+      tb_cough_weeks: voiceData.tb_cough_weeks ? String(voiceData.tb_cough_weeks) : p.tb_cough_weeks,
+      bleeding: voiceData.bleeding === true ? true : p.bleeding,
+      seizure: voiceData.seizure === true ? true : p.seizure,
+      breathlessness: voiceData.breathlessness === true ? true : p.breathlessness,
+      vaccination_due: voiceData.vaccination_due === true ? true : p.vaccination_due,
+      vaccination_given: voiceData.vaccination_given === true ? true : p.vaccination_given,
+      tb_followup_missed: voiceData.tb_followup_missed === true ? true : p.tb_followup_missed,
     }));
 
     // Build summary lines for the existing extraction UI
     const lines = [];
-    if (aiJson.visit_type) lines.push(`Visit Type: ${aiJson.visit_type}`);
-    if (aiJson.bp_systolic && aiJson.bp_diastolic) lines.push(`BP: ${aiJson.bp_systolic}/${aiJson.bp_diastolic} mmHg`);
-    if (aiJson.temperature_c) lines.push(`Temperature: ${aiJson.temperature_c}°C`);
-    if (aiJson.weight_kg) lines.push(`Weight: ${aiJson.weight_kg} kg`);
-    if (aiJson.gestational_weeks) lines.push(`Gestational Weeks: ${aiJson.gestational_weeks}`);
-    if (aiJson.trimester) lines.push(`Trimester: ${aiJson.trimester}`);
-    if (aiJson.anc_number) lines.push(`ANC Number: ${aiJson.anc_number}`);
-    if (aiJson.postnatal_day) lines.push(`Postnatal Day: ${aiJson.postnatal_day}`);
-    if (aiJson.muac_cm) lines.push(`MUAC: ${aiJson.muac_cm} cm`);
-    if (aiJson.tb_cough_weeks) lines.push(`Cough: ${aiJson.tb_cough_weeks} weeks`);
-    if (aiJson.bleeding === true) lines.push('Bleeding (खून)');
-    if (aiJson.seizure === true) lines.push('Seizure (दौरा)');
-    if (aiJson.breathlessness === true) lines.push('Breathlessness (साँस)');
-    if (aiJson.vaccination_due === true) lines.push('Vaccination Due (टीका बाकी)');
-    if (aiJson.vaccination_given === true) lines.push('Vaccination Given (टीका दिया)');
-    if (aiJson.tb_followup_missed === true) lines.push('TB Follow-up Missed (टीबी फॉलो-अप छूटा)');
+    if (voiceData.visit_type) lines.push(`Visit Type: ${voiceData.visit_type}`);
+    if (voiceData.bp_systolic && voiceData.bp_diastolic) lines.push(`BP: ${voiceData.bp_systolic}/${voiceData.bp_diastolic} mmHg`);
+    if (voiceData.temperature_c) lines.push(`Temperature: ${voiceData.temperature_c}°C`);
+    if (voiceData.weight_kg) lines.push(`Weight: ${voiceData.weight_kg} kg`);
+    if (voiceData.gestational_weeks) lines.push(`Gestational Weeks: ${voiceData.gestational_weeks}`);
+    if (voiceData.trimester) lines.push(`Trimester: ${voiceData.trimester}`);
+    if (voiceData.anc_number) lines.push(`ANC Number: ${voiceData.anc_number}`);
+    if (voiceData.postnatal_day) lines.push(`Postnatal Day: ${voiceData.postnatal_day}`);
+    if (voiceData.muac_cm) lines.push(`MUAC: ${voiceData.muac_cm} cm`);
+    if (voiceData.tb_cough_weeks) lines.push(`Cough: ${voiceData.tb_cough_weeks} weeks`);
+    if (voiceData.bleeding === true) lines.push('Bleeding (खून)');
+    if (voiceData.seizure === true) lines.push('Seizure (दौरा)');
+    if (voiceData.breathlessness === true) lines.push('Breathlessness (साँस)');
+    if (voiceData.vaccination_due === true) lines.push('Vaccination Due (टीका बाकी)');
+    if (voiceData.vaccination_given === true) lines.push('Vaccination Given (टीका दिया)');
+    if (voiceData.tb_followup_missed === true) lines.push('TB Follow-up Missed (टीबी फॉलो-अप छूटा)');
     setExtractedSummary(lines);
     setShowExtracted(lines.length > 0);
 
-    // Enrich: run local keywordParser on AI transcript to catch fields Gemini may have missed
-    if (aiJson.raw_note) {
-      const localExt = parseNote(aiJson.raw_note);
+    // Enrich: run local keywordParser on transcript to catch fields mock may have missed
+    if (voiceData.raw_note) {
+      const localExt = parseNote(voiceData.raw_note);
       setFields(p => ({
         ...p,
         bp_systolic: p.bp_systolic || (localExt.bp_systolic ? String(localExt.bp_systolic) : ''),
@@ -150,14 +150,14 @@ export default function AddVisitScreen({ route, navigation }) {
         vaccination_given: p.vaccination_given || (localExt.vaccination_given ? true : false),
         tb_followup_missed: p.tb_followup_missed || (localExt.tb_followup_missed ? true : false),
       }));
-      // Set visit type from local hint if AI didn't provide one
-      if (!aiJson.visit_type && localExt.visit_type_hint) {
+      // Set visit type from local hint if mock didn't provide one
+      if (!voiceData.visit_type && localExt.visit_type_hint) {
         setVisitType(localExt.visit_type_hint);
       }
     }
   };
 
-  const handleProcessingChange = (processing) => setIsProcessingAI(processing);
+  const handleProcessingChange = (processing) => setIsProcessingVoice(processing);
 
   const handleSave = async () => {
     if(!visitType){ Alert.alert('Required','Please select visit type'); return; }
@@ -301,15 +301,18 @@ export default function AddVisitScreen({ route, navigation }) {
           <SwitchRow label="Vaccination Given" value={fields.vaccination_given} onToggle={v=>updateField('vaccination_given',v)}/></>}
         {showGeneral&&<FormInput label="Temperature (°C)" value={fields.temperature_c} onChangeText={v=>updateField('temperature_c',v)} keyboardType="decimal-pad"/>}
         {visitType?<><FormInput label="📝 Hindi/Hinglish Note" value={fields.raw_note} onChangeText={v=>updateField('raw_note',v)} multiline placeholder="e.g. BP high hai, khoon bhi aa raha hai"/>
-          <AudioRecorder onResult={handleAIResult} onProcessingChange={handleProcessingChange}/>
+          <AudioRecorder visitType={visitType} onResult={handleVoiceResult} onProcessingChange={handleProcessingChange}/>
           <TouchableOpacity style={s.parseBtn} onPress={handleParseNote}><Text style={s.parseTxt}>🔍 Parse Note / नोट पार्स करें</Text></TouchableOpacity>
           {showExtracted&&extractedSummary.length>0&&<View style={s.extBox}><Text style={s.extTitle}>हमने ये जानकारी निकाली:</Text>
             {extractedSummary.map((l,i)=><Text key={i} style={s.extLine}>• {l}</Text>)}
             <Text style={s.editHint}>✏️ You can edit fields above before saving</Text></View>}
           {riskResult&&<View style={s.riskBox}><RiskBadge riskLevel={riskResult.riskLevel}/>
             {riskResult.riskFlags.map((f,i)=><Text key={i} style={s.riskFlag}>⚠️ {f.replace(/_/g,' ')}</Text>)}</View>}
-          <TouchableOpacity style={[s.saveBtn,(saving||isProcessingAI)&&{opacity:0.6}]} onPress={handleSave} disabled={saving||isProcessingAI}>
-            <Text style={s.saveTxt}>{isProcessingAI?'🧠 AI Processing...':saving?'Saving...':'💾 Save Visit / विजिट सेव करें'}</Text></TouchableOpacity></>:null}
+          {!isProcessingVoice && (
+            <TouchableOpacity style={[s.saveBtn, saving && {opacity:0.6}]} onPress={handleSave} disabled={saving}>
+              <Text style={s.saveTxt}>{saving ? 'Saving...' : '💾 Save Visit / विजिट सेव करें'}</Text>
+            </TouchableOpacity>
+          )}</>:null}
       </View>
     </ScrollView>
   );

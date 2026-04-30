@@ -36,13 +36,14 @@ const RECORDING_OPTIONS = {
 // ─── Component ──────────────────────────────────────────────────────────────────
 
 /**
- * AudioRecorder — Expo-compatible voice recorder with AI processing.
+ * AudioRecorder — Expo-compatible voice recorder.
  *
  * Props:
- *   onResult(aiJson)          — called with the sanitized AI response object
+ *   visitType                 — passed down to generate correct mock
+ *   onResult(result)          — called with the sanitized response object
  *   onProcessingChange(bool)  — called when processing state changes
  */
-export default function AudioRecorder({ onResult, onProcessingChange }) {
+export default function AudioRecorder({ visitType, onResult, onProcessingChange }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusText, setStatusText] = useState('');
@@ -189,7 +190,7 @@ export default function AudioRecorder({ onResult, onProcessingChange }) {
 
     setIsRecording(false);
     setIsProcessing(true);
-    setStatusText('🧠 AI analyzing health conversation...');
+    setStatusText('⏳ Processing recording...');
 
     try {
       await recordingRef.current.stopAndUnloadAsync();
@@ -204,14 +205,14 @@ export default function AudioRecorder({ onResult, onProcessingChange }) {
 
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
 
-      // Process through hybrid voice service (handles connectivity + timeout + persistence)
-      setStatusText('🧠 Processing recording...');
-      const result = await processRecording(uri);
+      // Process through hybrid voice service (handles connectivity + persistence + mock)
+      setStatusText('⏳ Processing recording...');
+      const result = await processRecording(uri, 'audio/mp4', visitType);
 
       // Use the service-provided status message
       setStatusText(result.message);
 
-      // Deliver AI data if available
+      // Deliver data if available
       if (result.data && Object.keys(result.data).length > 0) {
         onResult?.(result.data);
       }
@@ -311,12 +312,7 @@ export default function AudioRecorder({ onResult, onProcessingChange }) {
         </Text>
       )}
 
-      {/* AI branding line */}
-      <View style={s.brandRow}>
-        <Text style={s.brandText}>✨ AI Copilot</Text>
-        <Text style={s.brandDot}>•</Text>
-        <Text style={s.brandSub}>Voice → Form Autofill</Text>
-      </View>
+      {/* Removed AI branding line */}
     </View>
   );
 }

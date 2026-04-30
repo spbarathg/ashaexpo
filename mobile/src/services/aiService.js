@@ -16,8 +16,8 @@
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
-// Use flash-lite — separate (higher) free-tier quota from flash
-const GEMINI_MODEL = 'gemini-2.0-flash-lite';
+// Use gemini-2.0-flash as requested
+const GEMINI_MODEL = 'gemini-2.0-flash';
 const GEMINI_ENDPOINT =
   `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
@@ -84,23 +84,42 @@ RULES:
 - "raw_note" MUST always be present and contain the full transcription.
 - Return ONLY the JSON object. No markdown fences. No commentary.`;
 
+// ─── Concurrency & Retry Config ─────────────────────────────────────────────────
+
+let _inflight = false;            // Concurrency lock — only one request at a time
+const MAX_RETRIES = 3;            // Max retry attempts on 429
+const BASE_DELAY_MS = 2000;       // Exponential backoff base
+const REQUEST_TIMEOUT_MS = 12000; // Per-request timeout (12s, realistic for mobile)
+
 // ─── Main export ────────────────────────────────────────────────────────────────
 
 /**
  * Process voice health input through Gemini AI.
+ *
+ * Implements:
+ *   1. Concurrency lock — drops overlapping calls
+ *   2. AbortController timeout — kills hung fetches
+ *   3. Exponential backoff — handles 429 with Retry-After support
  *
  * @param {string} audioBase64 - Base64-encoded audio data (m4a / wav)
  * @param {string} [mimeType='audio/mp4'] - MIME type of the audio
  * @returns {Promise<object>} Sanitized field object matching AddVisitScreen schema
  */
 export async function processVoiceHealthInput(audioBase64, mimeType = 'audio/mp4') {
+  // ── Guard: reject if another request is already in-flight ──
+  if (_inflight) {
+    console.warn('[aiService] Request already in-flight — dropping duplicate call');
+    return getMockResponse();
+  }
+
+  _inflight = true;
   try {
     if (!audioBase64 || typeof audioBase64 !== 'string') {
       console.warn('[aiService] No audio data provided, returning mock');
       return getMockResponse();
     }
 
-    if (GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
       console.warn('[aiService] API key not configured — returning mock response');
       return getMockResponse();
     }
@@ -126,47 +145,72 @@ export async function processVoiceHealthInput(audioBase64, mimeType = 'audio/mp4
       },
     };
 
+    // ── Retry loop with exponential backoff ──
     let response;
-    let retries = 4;
-    let delay = 2000;
+    let lastError = null;
 
-    while (retries > 0) {
-      response = await fetch(GEMINI_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      // Create a fresh AbortController per attempt
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
+      try {
+        response = await fetch(GEMINI_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') {
+          console.warn(`[aiService] Request timed out after ${REQUEST_TIMEOUT_MS}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        } else {
+          console.warn(`[aiService] Network error (attempt ${attempt + 1}/${MAX_RETRIES}):`, fetchErr.message);
+        }
+        lastError = fetchErr;
+        // Backoff before next attempt
+        if (attempt < MAX_RETRIES - 1) {
+          const backoff = BASE_DELAY_MS * Math.pow(2, attempt);
+          await new Promise(r => setTimeout(r, backoff));
+        }
+        continue;
+      }
+      clearTimeout(timeoutId);
+
+      // Success — break out
       if (response.ok) break;
 
-      if (response.status === 429 && retries > 1) {
-        // Try to respect server's suggested retry delay
-        let serverDelay = delay;
+      // 429 Rate Limited — backoff and retry
+      if (response.status === 429 && attempt < MAX_RETRIES - 1) {
+        let waitMs = BASE_DELAY_MS * Math.pow(2, attempt); // 2s, 4s, 8s
+        // Respect server's Retry-After if available
         try {
           const errBody = await response.clone().json();
           const retryInfo = errBody?.error?.details?.find(d => d['@type']?.includes('RetryInfo'));
           if (retryInfo?.retryDelay) {
             const secs = parseFloat(retryInfo.retryDelay);
-            if (!isNaN(secs) && secs > 0) serverDelay = Math.ceil(secs * 1000) + 500;
+            if (!isNaN(secs) && secs > 0) waitMs = Math.ceil(secs * 1000) + 500;
           }
-        } catch { /* use default delay */ }
-        const waitMs = Math.min(serverDelay, 30000);
-        console.warn(`[aiService] Rate limited (429). Retrying in ${waitMs}ms... (${retries - 1} retries left)`);
-        await new Promise(resolve => setTimeout(resolve, waitMs));
-        retries--;
-        delay = Math.min(delay * 2, 30000);
-      } else {
-        break;
+        } catch { /* use computed backoff */ }
+        waitMs = Math.min(waitMs, 30000); // Cap at 30s
+        console.warn(`[aiService] 429 Rate limited. Backoff ${waitMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await new Promise(r => setTimeout(r, waitMs));
+        continue;
       }
+
+      // Non-retryable error — break out
+      break;
     }
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => 'unknown');
-      console.warn(`[aiService] API error ${response.status}: ${errText}`);
-      // Return offline fallback with indicator
+    // ── Handle final response ──
+    if (!response || !response.ok) {
+      const status = response?.status || 'NO_RESPONSE';
+      const errText = response ? await response.text().catch(() => 'unknown') : (lastError?.message || 'unknown');
+      console.warn(`[aiService] Final API error ${status}: ${errText}`);
       const mock = getMockResponse();
       mock._offlineFallback = true;
-      mock._reason = response.status === 429 ? 'API quota exceeded — using local extraction only' : `API error ${response.status}`;
+      mock._reason = status === 429 ? 'API quota exceeded — using local extraction only' : `API error ${status}`;
       return mock;
     }
 
@@ -188,6 +232,8 @@ export async function processVoiceHealthInput(audioBase64, mimeType = 'audio/mp4
   } catch (err) {
     console.warn('[aiService] processVoiceHealthInput failed:', err);
     return getMockResponse();
+  } finally {
+    _inflight = false; // Always release the lock
   }
 }
 
@@ -305,12 +351,10 @@ function sanitizeAIResponse(raw) {
   return result;
 }
 
-// ─── Mock responses (hackathon demo safety net) ─────────────────────────────────
+// ─── Deterministic fallback responses (one fixed set per visit type) ─────────
 
-let _mockIndex = 0;
-
-const MOCK_RESPONSES = [
-  {
+const MOCK_BY_VISIT_TYPE = {
+  'ANC': {
     visit_type: 'ANC',
     trimester: '2',
     bp_systolic: '130',
@@ -324,7 +368,7 @@ const MOCK_RESPONSES = [
       'BP 130/85 hai. Weight 52 kg. Khoon nahi aa raha, koi seizure nahi. ' +
       'Sab normal lag raha hai.',
   },
-  {
+  'Child': {
     visit_type: 'Child',
     temperature_c: '39.8',
     muac_cm: '11.0',
@@ -335,7 +379,7 @@ const MOCK_RESPONSES = [
       'Bachche ko tez bukhar hai, temperature 39.8 hai. MUAC 11 cm. ' +
       'Saans lene mein taklif ho rahi hai. Tika abhi baaki hai.',
   },
-  {
+  'TB Follow-up': {
     visit_type: 'TB Follow-up',
     tb_cough_weeks: '4',
     tb_followup_missed: true,
@@ -345,7 +389,7 @@ const MOCK_RESPONSES = [
       'TB patient Ramu ka follow-up miss ho gaya. 4 hafte se khansi hai. ' +
       'Halka bukhar 38.2. Wajan 45 kg ho gaya. Dawai nahi le raha tha.',
   },
-  {
+  'Postnatal': {
     visit_type: 'Postnatal',
     postnatal_day: '3',
     bp_systolic: '145',
@@ -356,7 +400,7 @@ const MOCK_RESPONSES = [
       'Delivery ke 3 din baad visit. BP 145/95 hai, thoda zyada hai. ' +
       'Halka khoon aa raha hai. Temperature 37.8. Monitoring zaroori hai.',
   },
-  {
+  'Vaccination': {
     visit_type: 'Vaccination',
     vaccination_due: true,
     vaccination_given: true,
@@ -365,14 +409,29 @@ const MOCK_RESPONSES = [
       'Bachche ka tika lagaya gaya. Temperature normal 36.8. ' +
       'Polio aur DPT booster diya gaya. Agla tika 6 hafte baad.',
   },
-];
+  'General': {
+    visit_type: 'General',
+    bp_systolic: '120',
+    bp_diastolic: '80',
+    temperature_c: '37.0',
+    raw_note:
+      'General health checkup. BP 120/80, temperature 37.0. ' +
+      'Patient stable, no complaints.',
+  },
+};
+
+// Default fallback when visit type is unknown
+const DEFAULT_MOCK = MOCK_BY_VISIT_TYPE['General'];
 
 /**
- * Returns a varied mock response for demo/fallback scenarios.
- * Rotates through 5 different visit types so repeated demos look natural.
+ * Returns a deterministic mock response for demo/fallback scenarios.
+ * Always returns the same values for the same visit type — never rotates.
+ *
+ * @param {string} [visitType] - Optional visit type to match
+ * @returns {object} Fixed test values for the given visit type
  */
-function getMockResponse() {
-  const mock = MOCK_RESPONSES[_mockIndex % MOCK_RESPONSES.length];
-  _mockIndex++;
+export function getMockResponse(visitType) {
+  const mock = (visitType && MOCK_BY_VISIT_TYPE[visitType]) || DEFAULT_MOCK;
   return { ...mock };
 }
+
